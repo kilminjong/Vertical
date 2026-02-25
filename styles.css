@@ -466,11 +466,92 @@ body { font-family:'Noto Sans KR','Outfit',system-ui,sans-serif; background:var(
 @keyframes tin { from{transform:translateX(100%);opacity:0} to{transform:translateX(0);opacity:1} }
 
 /* ========== RESPONSIVE ========== */
-@media(max-width:768px) {
-    .app-header { padding:0 10px; }
-    .app-main { padding:8px; gap:8px; }
+/* ========== RESPONSIVE - TABLET (≤1024px) ========== */
+@media(max-width:1024px) {
     .section-bottom { flex-direction:column; }
-    .court-card { flex:0 0 auto; }
+    .panel-players { flex:none; max-height:45vh; }
+    .panel-match { flex:none; }
+    .court-card { flex:0 0 260px; }
+}
+
+/* ========== RESPONSIVE - MOBILE (≤768px) ========== */
+@media(max-width:768px) {
+    /* 헤더 */
+    .app-header { padding:0 10px; height:48px; }
     .header-center { display:none; }
-    .courts-row { flex-direction:column; }
+    .header-right { gap:5px; }
+    .header-right .btn { padding:5px 8px; font-size:.7rem; }
+
+    /* 메인 레이아웃 */
+    .app-main { padding:8px; gap:8px; height:auto; min-height:calc(100vh - 48px); }
+    .section-bottom { flex-direction:column; }
+
+    /* 코트 - 가로 스크롤 유지 */
+    .courts-row { flex-direction:row; gap:8px; }
+    .court-card { flex:0 0 260px; }
+    .section-bar h2 { font-size:.85rem; }
+
+    /* 패널 */
+    .panel-players { flex:none; max-height:50vh; }
+    .panel-match { flex:none; }
+    .panel-head { padding:10px 12px; }
+    .panel-head h3 { font-size:.82rem; }
+
+    /* 플레이어 카드 - 모바일에서 더 작게 */
+    .pc { width:130px; padding:6px 10px; }
+    .pc-name { font-size:.82rem; }
+    .pc-game-badge { min-width:22px; height:22px; font-size:.75rem; }
+    .player-list { gap:6px; }
+
+    /* 필터 */
+    .filter-row { padding:6px 10px; gap:3px; overflow-x:auto; flex-wrap:nowrap; }
+    .chip { padding:3px 10px; font-size:.68rem; flex-shrink:0; }
+
+    /* 매칭 바 */
+    .match-bar { flex-direction:column; align-items:stretch; gap:8px; padding:8px 12px; }
+    .type-tabs { flex-wrap:wrap; gap:3px; }
+    .type-tab { padding:4px 10px; font-size:.68rem; }
+    .rules-note { font-size:.65rem; padding:6px 10px; }
+
+    /* 미리보기 */
+    .preview-area { padding:8px 10px; }
+    .preview-teams { flex-direction:column; gap:6px; }
+    .preview-vs { transform:rotate(0); }
+
+    /* 대기열 카드 */
+    .q-game-body { flex-direction:column; gap:4px; padding:8px 10px; }
+    .q-vs { font-size:.7rem; }
+    .q-player { font-size:.7rem; padding:3px 8px; }
+
+    /* 검색 */
+    .search-input { width:120px; font-size:.72rem; }
+
+    /* 모달 */
+    .modal { width:96%; max-height:85vh; }
+    .modal-lg { max-width:100%; }
+}
+
+/* ========== RESPONSIVE - SMALL MOBILE (≤480px) ========== */
+@media(max-width:480px) {
+    .app-header { height:44px; }
+    .logo h1 { font-size:.85rem; }
+    .header-right .btn-history, .header-right .btn-save { display:none; }
+
+    .court-card { flex:0 0 240px; }
+    .court-body { padding:10px; min-height:70px; }
+    .court-team { padding:5px 8px; font-size:.78rem; }
+
+    .pc { width:calc(50% - 4px); }
+    .pc-name { font-size:.78rem; }
+    .pc-tags { gap:3px; }
+    .pc-lv { font-size:.58rem; padding:1px 4px; }
+    .pc-gender { font-size:.55rem; }
+    .pc-status { font-size:.55rem; padding:1px 5px; }
+
+    .q-game-header { padding:6px 10px; }
+    .q-player-name { font-size:.7rem; }
+    .q-player-info { font-size:.58rem; }
+
+    .match-bar { padding:6px 10px; }
+    .panel-foot { padding:8px 10px; }
 }
