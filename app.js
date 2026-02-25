@@ -621,7 +621,6 @@ function pickMixed(pool) {
 function manualMatch() {
     if (S.selectedIds.length !== 4) { toast('4명을 선택해주세요', 'err'); return; }
     const players = S.selectedIds.map(id => S.players.find(p => p.id === id)).filter(Boolean);
-    if (!isValidGender(players)) { toast('남남남여 / 여여여남 조합 불가', 'err'); return; }
     const split = bestSplit(players);
     const allIds = players.map(p => p.id);
     S.matchHistory.push(matchKey(allIds));
@@ -648,8 +647,9 @@ function renderCourts() {
 
     el.innerHTML = S.courts.map(c => {
         const live = !!c.game;
+        const typeClass = live ? `type-${c.game.type}` : '';
         return `
-        <div class="court-card ${live?'active':''}">
+        <div class="court-card ${live?'active':''} ${typeClass}">
             <div class="court-top">
                 <div style="display:flex;align-items:center;gap:10px">
                     <span class="court-name">${c.name}</span>
@@ -689,10 +689,12 @@ function renderPlayers() {
         return true;
     });
 
-    const ord = {waiting:0, resting:1, late:2, playing:3};
+    // 급수순 정렬 (A→B→C→D→E), 같은 급수 내에서 상태순, 이름순
+    const lvOrd = {A:0, B:1, C:2, D:3, E:4};
+    const stOrd = {waiting:0, resting:1, late:2, playing:3};
     arr.sort((a,b) => {
-        if (ord[a.status] !== ord[b.status]) return (ord[a.status]||9) - (ord[b.status]||9);
-        if (b.restCount !== a.restCount) return b.restCount - a.restCount;
+        if ((lvOrd[a.level]??9) !== (lvOrd[b.level]??9)) return (lvOrd[a.level]??9) - (lvOrd[b.level]??9);
+        if ((stOrd[a.status]??9) !== (stOrd[b.status]??9)) return (stOrd[a.status]??9) - (stOrd[b.status]??9);
         return a.name.localeCompare(b.name, 'ko');
     });
 
@@ -704,14 +706,17 @@ function renderPlayers() {
             const genderCls = p.gender === '남' ? 'male' : 'female';
             const urgentTag = (p.restCount >= CONFIG.MAX_REST && p.status==='waiting') ? `<span class="pc-urgent">🔥${p.restCount}쉼</span>` : '';
             return `
-            <div class="pc ${p.selected?'selected':''} ${p.status}" onclick="toggleSelect('${p.id}')">
-                <span class="level-dot ${p.level}"></span>
-                <span class="pc-name">${p.name}</span>
-                <span class="pc-level">${p.level}</span>
-                <span class="pc-gender ${genderCls}">${p.gender}</span>
-                <span class="pc-games">${p.gameCount}</span>
-                ${urgentTag}
-                <button class="pc-status ${p.status}" onclick="event.stopPropagation();showStatusDropdown('${p.id}',event)">${statusLabel}</button>
+            <div class="pc lv-bg-${p.level} ${p.selected?'selected':''} ${p.status} gender-${genderCls}" onclick="toggleSelect('${p.id}')">
+                <div class="pc-main">
+                    <span class="pc-name">${p.name}</span>
+                    <span class="pc-game-badge${p.gameCount > 0 ? ' has-games' : ''}">${p.gameCount}</span>
+                </div>
+                <div class="pc-tags">
+                    <span class="pc-lv lv-${p.level}">${p.level}</span>
+                    <span class="pc-gender ${genderCls}">${p.gender}</span>
+                    ${urgentTag}
+                    <button class="pc-status ${p.status}" onclick="event.stopPropagation();showStatusDropdown('${p.id}',event)">${statusLabel}</button>
+                </div>
                 ${p.status!=='playing'?`<button class="pc-del" onclick="event.stopPropagation();removePlayer('${p.id}')">×</button>`:''}
             </div>`;
         }).join('');
@@ -729,18 +734,16 @@ function renderPreview() {
     }
     if (count === 4) {
         const players = S.selectedIds.map(id => S.players.find(p => p.id === id)).filter(Boolean);
-        if (!isValidGender(players)) {
-            area.innerHTML = `<div class="preview-selecting" style="border-color:var(--red)"><span class="count" style="color:var(--red)">⚠️ 남남남여 / 여여여남</span><p style="color:var(--red);font-size:.78rem">이 조합은 불가능합니다</p></div>`;
-            return;
-        }
+        const genderWarning = !isValidGender(players);
         const split = bestSplit(players);
         const type = getGameType(players);
         const sA = split.teamA.reduce((s,p)=>s+lvVal(p.level),0);
         const sB = split.teamB.reduce((s,p)=>s+lvVal(p.level),0);
         area.innerHTML = `
-        <div class="preview-game">
+        <div class="preview-game" ${genderWarning ? 'style="border-color:var(--amber)"' : ''}>
             <span class="preview-label">다음 게임 미리보기</span>
             <span class="preview-type">${type}</span>
+            ${genderWarning ? '<div style="color:var(--amber);font-size:.7rem;font-weight:600;margin-bottom:6px">⚠️ 3:1 성비 - 수동 매칭만 가능</div>' : ''}
             <div class="preview-teams">
                 <div class="preview-team">
                     <div class="preview-team-label">TEAM A (${sA})</div>

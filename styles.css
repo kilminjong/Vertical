@@ -102,7 +102,32 @@ body { font-family:'Noto Sans KR','Outfit',system-ui,sans-serif; background:var(
     box-shadow:var(--shadow);
     transition:all .2s;
 }
-.court-card.active { border-color:var(--green); box-shadow:0 0 0 2px var(--green-bg2), var(--shadow); }
+/* 게임 진행중 - 타입별 색상 */
+.court-card.active { box-shadow:var(--shadow), 0 0 0 2px var(--green-bg2); }
+.court-card.active.type-남복 { border-color:var(--blue); background:linear-gradient(135deg, #eff6ff 0%, #fff 50%); }
+.court-card.active.type-여복 { border-color:var(--pink); background:linear-gradient(135deg, #fdf2f8 0%, #fff 50%); }
+.court-card.active.type-혼복 { border-color:var(--green); background:linear-gradient(135deg, #f0fdf4 0%, #fff 50%); }
+.court-card.active.type-혼합 { border-color:var(--amber); background:linear-gradient(135deg, #fffbeb 0%, #fff 50%); }
+.court-card.active.type-자동 { border-color:var(--green); background:linear-gradient(135deg, #f0fdf4 0%, #fff 50%); }
+
+.court-card.active .court-top { border-bottom-color:rgba(0,0,0,.06); }
+.court-card.active.type-남복 .court-top { background:rgba(37,99,235,.06); }
+.court-card.active.type-여복 .court-top { background:rgba(219,39,119,.06); }
+.court-card.active.type-혼복 .court-top { background:rgba(22,163,74,.06); }
+.court-card.active.type-혼합 .court-top { background:rgba(217,119,6,.06); }
+.court-card.active.type-자동 .court-top { background:rgba(22,163,74,.06); }
+
+/* 진행중 상태 뱃지 타입별 색상 */
+.court-card.active.type-남복 .court-status.live { background:var(--blue-bg); color:var(--blue); }
+.court-card.active.type-여복 .court-status.live { background:var(--pink-bg); color:var(--pink); }
+.court-card.active.type-혼복 .court-status.live { background:var(--green-bg2); color:var(--green-d); }
+.court-card.active.type-혼합 .court-status.live { background:var(--amber-bg); color:var(--amber); }
+.court-card.active.type-자동 .court-status.live { background:var(--green-bg2); color:var(--green-d); }
+
+/* 진행중 타이머 색상 */
+.court-card.active.type-남복 .court-timer { color:var(--blue); }
+.court-card.active.type-여복 .court-timer { color:var(--pink); }
+.court-card.active.type-혼합 .court-timer { color:var(--amber); }
 
 .court-top {
     display:flex; align-items:center; justify-content:space-between;
@@ -181,33 +206,73 @@ body { font-family:'Noto Sans KR','Outfit',system-ui,sans-serif; background:var(
 .chip.active { background:var(--green-bg2); border-color:var(--green-border); color:var(--green-d); font-weight:700; }
 
 .player-scroll { flex:1; overflow-y:auto; padding:10px; }
-.player-list { display:flex; flex-wrap:wrap; gap:6px; align-content:flex-start; }
+.player-list { display:flex; flex-wrap:wrap; gap:8px; align-content:flex-start; }
 
 /* --- Player Card (pc) --- */
 .pc {
-    display:flex; align-items:center; gap:5px;
-    padding:7px 10px; background:var(--bg2); border:1.5px solid var(--brd);
-    border-radius:var(--r); cursor:pointer; transition:all .12s;
-    position:relative; font-size:.8rem;
+    display:flex; flex-direction:column; gap:3px;
+    padding:8px 12px; width:145px;
+    border-radius:var(--r-lg); cursor:pointer; transition:all .15s;
+    position:relative; border:2px solid transparent;
 }
-.pc:hover { background:var(--bg-hover); border-color:var(--brd2); box-shadow:var(--shadow-sm); }
-.pc.selected { background:var(--green-bg); border-color:var(--green); box-shadow:0 0 0 2px var(--green-bg2); }
-.pc.playing { opacity:.5; cursor:default; }
-.pc.resting { opacity:.45; border-style:dashed; }
-.pc.late { opacity:.35; }
+.pc:hover { filter:brightness(.96); box-shadow:var(--shadow); }
+.pc.selected { border-color:var(--green); box-shadow:0 0 0 3px var(--green-bg2); }
+.pc.playing { opacity:.45; cursor:default; }
+.pc.resting { opacity:.4; border-style:dashed; border-color:var(--brd2); }
+.pc.late { opacity:.3; }
 
-.pc-name { font-weight:700; font-size:.82rem; }
-.pc-level { font-size:.65rem; font-weight:700; color:var(--txt2); background:var(--bg3); padding:1px 5px; border-radius:4px; }
+/* 성별 왼쪽 라인 */
+.pc.gender-male { border-left:3px solid var(--blue); }
+.pc.gender-female { border-left:3px solid var(--pink); }
+.pc.selected.gender-male { border-left:3px solid var(--blue); }
+.pc.selected.gender-female { border-left:3px solid var(--pink); }
+
+/* 급수별 배경색 */
+.pc.lv-bg-A { background:#fef2f2; }
+.pc.lv-bg-B { background:#fff7ed; }
+.pc.lv-bg-C { background:#f0fdf4; }
+.pc.lv-bg-D { background:#eff6ff; }
+.pc.lv-bg-E { background:#f5f3ff; }
+
+.pc-main { display:flex; align-items:center; gap:4px; }
+.pc-name { font-size:.92rem; font-weight:800; color:var(--txt); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pc-urgent { font-size:.6rem; color:var(--red); font-weight:700; flex-shrink:0; }
+
+.pc-tags { display:flex; align-items:center; gap:4px; }
+.pc-lv {
+    font-size:.62rem; font-weight:800; padding:1px 6px; border-radius:4px; color:#fff;
+}
+.pc-lv.lv-A { background:#dc2626; }
+.pc-lv.lv-B { background:#ea580c; }
+.pc-lv.lv-C { background:#16a34a; }
+.pc-lv.lv-D { background:#2563eb; }
+.pc-lv.lv-E { background:#7c3aed; }
+
 .pc-gender { font-size:.6rem; font-weight:700; padding:1px 5px; border-radius:4px; }
 .pc-gender.male { background:var(--blue-bg); color:var(--blue); }
 .pc-gender.female { background:var(--pink-bg); color:var(--pink); }
-.pc-games { font-size:.6rem; color:var(--txt3); font-weight:700; background:var(--bg3); padding:1px 5px; border-radius:4px; }
-.pc-games::after { content:'게임'; }
-.pc-urgent { font-size:.58rem; color:var(--red); font-weight:700; }
+
+.pc-games { font-size:.58rem; color:var(--txt3); font-weight:700; background:var(--bg3); padding:1px 5px; border-radius:4px; }
+
+/* 게임수 배지 - 이름 옆에 크게 */
+.pc-game-badge {
+    margin-left:auto; flex-shrink:0;
+    min-width:24px; height:24px;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:8px; font-size:.82rem; font-weight:800;
+    background:var(--bg3); color:var(--txt3);
+    line-height:1;
+}
+.pc-game-badge.has-games {
+    background:var(--green); color:#fff;
+    box-shadow:0 1px 3px rgba(22,163,74,.3);
+}
+.pc-game-badge::after { content:'G'; font-size:.55rem; font-weight:600; margin-left:1px; opacity:.7; }
+
 .pc-status {
-    font-size:.6rem; font-weight:600; padding:2px 7px; border-radius:10px;
+    font-size:.58rem; font-weight:600; padding:1px 6px; border-radius:10px;
     cursor:pointer; border:none; font-family:inherit;
-    transition:all .1s;
+    transition:all .1s; margin-left:auto;
 }
 .pc-status.waiting { background:var(--green-bg2); color:var(--green-d); }
 .pc-status.playing { background:var(--blue-bg); color:var(--blue); }
@@ -216,7 +281,7 @@ body { font-family:'Noto Sans KR','Outfit',system-ui,sans-serif; background:var(
 .pc-status:hover { filter:brightness(.9); }
 
 .pc-del {
-    position:absolute; top:2px; right:4px;
+    position:absolute; top:3px; right:5px;
     background:none; border:none; color:var(--txt3); cursor:pointer;
     font-size:.85rem; line-height:1; padding:0 2px; border-radius:3px;
     opacity:0; transition:all .12s;
