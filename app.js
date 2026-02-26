@@ -413,7 +413,7 @@ function sortPriority(arr) {
         if (b.restCount !== a.restCount) return b.restCount - a.restCount;
         // 3) 게임 적은 사람 우선
         if (a.gameCount !== b.gameCount) return a.gameCount - b.gameCount;
-        return 0;
+        return Math.random() - 0.5; 
     });
 }
 
