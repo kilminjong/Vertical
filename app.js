@@ -2,13 +2,14 @@
    버티컬 배드민턴 매칭 시스템 v2
    ============================================
    매칭 규칙:
-   1. 비슷한 급수끼리 우선 (같은 티어 1회 → 교차 1회)
-   2. 급수 밸런스: 팀 급수합 차이 최소
-   3. 남복/여복 우선, 혼복은 비율 적게
-   4. 남남남여 / 여여여남 (3:1) 금지
-   5. 3게임 이상 쉬지 않도록 우선 배정
-   6. 같은 4명 조합 반복 방지
-   7. 늦참/휴식 인원은 자동매칭 제외
+   1. 비슷한 급수끼리 우선 · 급수 밸런스
+   2. 남복/여복 우선, 혼복은 남녀비율에 따라 동적 조절
+   3. 남남남여 / 여여여남 (3:1) 금지
+   4. 매칭 풀: 코트/대기열에 없는 인원만 (순수 대기자 기반)
+   5. 자동 대기열 최대 2게임 (추가는 수동)
+   6. 8게임 이상 쉬지 않도록 우선 배정
+   7. 같은 4명 조합 반복 방지
+   8. 게임수 최대 2게임 차이 이내
    ============================================ */
 
 const CONFIG = {
@@ -20,7 +21,9 @@ const CONFIG = {
     LV: { A:5, B:4, C:3, D:2, E:1 },
     UPPER: ['A','B','C'],
     LOWER: ['D','E'],
-    MAX_REST: 3,
+    MAX_REST: 8,
+    // 자동 매칭 대기열 최대 게임 수
+    MAX_QUEUE: 2,
     // 동일 티어 매칭 : 교차 매칭 비율 (1:1 = 50% 동일, 50% 교차)
     SAME_TIER_RATIO: 1,
     // 최소 N게임 이내 같은 4인 조합 반복 금지
@@ -423,32 +426,39 @@ function shuffle(arr) {
 function sortPriority(arr) {
     // 먼저 셔플해서 동일 조건 내 무작위성 보장
     return shuffle(arr).sort((a,b) => {
-        // 1) 대기중 우선 (playing은 뒤로)
-        const aWait = a.status === 'waiting' ? 0 : 1;
-        const bWait = b.status === 'waiting' ? 0 : 1;
-        if (aWait !== bWait) return aWait - bWait;
-        // 2) 오래 쉰 사람 우선
+        // 1) 오래 쉰 사람 우선
         if (b.restCount !== a.restCount) return b.restCount - a.restCount;
-        // 3) 게임 적은 사람 우선
+        // 2) 게임 적은 사람 우선
         if (a.gameCount !== b.gameCount) return a.gameCount - b.gameCount;
         return 0; // 동일 조건 → 셔플 순서 유지 (무작위)
     });
 }
 
 /**
- * 매칭 가능 인원 (2단계):
- * - 1순위: waiting (대기중)
- * - 2순위: playing (게임중이지만 연속게임 가능)
- * - 대기열에 이미 있는 사람은 제외
- * - late, resting은 제외
+ * 매칭 가능 인원:
+ * - 코트에서 게임중인 인원 제외
+ * - 대기열에 이미 있는 인원 제외
+ * - late, resting 제외
+ * → 순수하게 "아무것도 안 하고 있는" 대기자만
  */
 function getAvailable() {
+    // 대기열에 있는 인원
     const inQueue = new Set();
     S.queue.forEach(g => { g.teamA.forEach(id => inQueue.add(id)); g.teamB.forEach(id => inQueue.add(id)); });
 
+    // 코트에서 게임중인 인원
+    const inCourt = new Set();
+    S.courts.forEach(c => {
+        if (c.game) {
+            c.game.teamA.forEach(id => inCourt.add(id));
+            c.game.teamB.forEach(id => inCourt.add(id));
+        }
+    });
+
     return S.players.filter(p =>
-        (p.status === 'waiting' || p.status === 'playing') &&
-        !inQueue.has(p.id)
+        p.status === 'waiting' &&
+        !inQueue.has(p.id) &&
+        !inCourt.has(p.id)
     );
 }
 
@@ -460,6 +470,14 @@ function getMinGameCount() {
     const active = S.players.filter(p => p.status === 'waiting' || p.status === 'playing');
     if (active.length === 0) return 0;
     return Math.min(...active.map(p => p.gameCount));
+}
+
+/**
+ * 매칭에 참여하지 않은 대기자 중 최대 restCount 확인
+ * 8게임 이상 쉰 사람이 있으면 urgentPlayers 반환
+ */
+function getUrgentPlayers(pool) {
+    return pool.filter(p => p.restCount >= CONFIG.MAX_REST);
 }
 
 /**
@@ -606,13 +624,8 @@ function scoreCombo(four) {
         repeatPenalty = Math.max(500, 10000 - repeatDist * 1500);
     }
 
-    // (1) playing 포함: 코트수에 따라 동적 패널티
-    //     3코트 이하: 대기자 충분 → playing 패널티 높게 (대기자 우선)
-    //     4코트+: 대기자 부족 → playing 패널티 낮게 (빈 코트 방지)
-    const courtCount = S.courts.length;
-    const playingCount = four.filter(p => p.status === 'playing').length;
-    const playingPenaltyPerPlayer = courtCount >= 4 ? 5 : 15;
-    const playingPenalty = playingCount * playingPenaltyPerPlayer;
+    // (1) 모든 후보가 순수 대기자이므로 playing 패널티 불필요
+    const playingPenalty = 0;
 
     // (2) 급수 유사도: 개인 급수 차이 기반 (비슷한 급수끼리 우선)
     const levels = four.map(p => CONFIG.LV[p.level] || 3);
@@ -628,9 +641,12 @@ function scoreCombo(four) {
     const fCount = four.filter(p => p.gender === '여').length;
     const mixedPenalty = (mCount === 2 && fCount === 2) ? getDynamicMixedPenalty() : 0;
 
-    // (4) urgent 보너스 (오래 쉰 사람 포함하면 감점)
-    const urgent = four.filter(p => p.restCount >= CONFIG.MAX_REST);
-    const urgentScore = -urgent.length * 30;
+    // (4) urgent 보너스 (오래 쉰 사람 포함 시 강력 감점)
+    //     restCount가 MAX_REST 이상이면 반드시 우선 배정
+    const urgentInFour = four.filter(p => p.restCount >= CONFIG.MAX_REST);
+    const urgentScore = -urgentInFour.length * 100;
+    //     추가: 쉰 횟수에 비례한 보너스 (많이 쉴수록 우선)
+    const restBonus = -four.reduce((sum, p) => sum + p.restCount * 3, 0);
 
     // (5) 신선도 (같이 한 적 적은 조합 우선)
     const freshness = comboFreshness(four);
@@ -646,7 +662,7 @@ function scoreCombo(four) {
     const noise = Math.random() * 8;
 
     return repeatPenalty + playingPenalty + tierScore + mixedPenalty
-         + freshness * 5 + urgentScore + gameCountPenalty + noise;
+         + freshness * 5 + urgentScore + restBonus + gameCountPenalty + noise;
 }
 
 /**
@@ -693,6 +709,12 @@ function autoMatch() {
 
     if (type === 'manual') {
         toast('수동 모드에서는 인원을 직접 선택하세요', 'info');
+        return;
+    }
+
+    // 자동 매칭 대기열 제한 (수동은 제한 없음)
+    if (S.queue.length >= CONFIG.MAX_QUEUE) {
+        toast(`대기열 ${CONFIG.MAX_QUEUE}게임 초과! 추가는 수동 매칭으로`, 'info');
         return;
     }
 
