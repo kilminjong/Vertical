@@ -18,9 +18,10 @@
     </div>
     <div class="header-center"><div class="date-display" id="currentDate"></div></div>
     <div class="header-right">
-        <button class="btn btn-sheet" id="btnLoadSheet">📥 시트 불러오기</button>
-        <button class="btn btn-history" id="btnGameLog">📋 게임 기록</button>
-        <button class="btn btn-save" id="btnSaveAttendance">💾 출석 저장</button>
+        <button class="btn btn-sheet" id="btnOpenSheet">시트 접속하기</button>
+        <button class="btn btn-sheet" id="btnLoadSheet">시트 불러오기</button>
+        <button class="btn btn-history" id="btnGameLog">게임 기록</button>
+        <button class="btn btn-save" id="btnSaveAttendance">출석 저장</button>
     </div>
 </header>
 
@@ -63,7 +64,7 @@
         <!-- RIGHT: 매칭 -->
         <div class="panel panel-match">
             <div class="panel-head">
-                <h3>⚡ 게임 매칭</h3>
+                <h3>게임 매칭</h3>
             </div>
             <div class="match-bar">
                 <div class="type-tabs">
@@ -73,7 +74,7 @@
                     <button class="type-tab" data-type="mixed">혼복</button>
                     <button class="type-tab" data-type="manual">수동</button>
                 </div>
-                <button class="btn btn-primary-sm" id="btnAutoMatch">⚡ 자동 매칭</button>
+                <button class="btn btn-primary-sm" id="btnAutoMatch">자동 매칭</button>
             </div>
             <div class="rules-note">
                 <strong>매칭 규칙:</strong> 1그룹(DE)/2그룹(ABC) 7:3 · 여자A는 남B~D와 3:1 허용 · 남복/여복 우선 · 교차 B+D,C+E까지 · 게임수 균등
@@ -147,8 +148,8 @@
         <div class="modal-top">
             <h3>📋 금일 게임 기록</h3>
             <div style="display:flex;gap:6px;align-items:center">
-                <button class="btn btn-primary-sm" id="btnExportGames">📤 시트에 내보내기</button>
-                <button class="btn btn-primary-sm" id="btnExportAttendance">📤 출석 내보내기</button>
+                <button class="btn btn-primary-sm" id="btnExportGames">시트에 내보내기</button>
+                <!--<button class="btn btn-primary-sm" id="btnExportAttendance">📤 출석 내보내기</button> -->
                 <button class="btn-x" onclick="closeModal('modalGameLog')">&times;</button>
             </div>
         </div>
@@ -163,9 +164,9 @@
 
 <!-- STATUS DROPDOWN (공유, JS에서 위치 조정) -->
 <div class="status-dropdown" id="statusDropdown">
-    <button class="sd-item" data-status="waiting">✅ 대기</button>
-    <button class="sd-item" data-status="resting">😴 휴식</button>
-    <button class="sd-item" data-status="late">🕐 늦참</button>
+    <button class="sd-item" data-status="waiting">대기</button>
+    <button class="sd-item" data-status="resting">휴식</button>
+    <button class="sd-item" data-status="late">늦참</button>
 </div>
 
 <div class="toast-box" id="toastBox"></div>
