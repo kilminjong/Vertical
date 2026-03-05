@@ -198,6 +198,10 @@ function fetchJSONP(tab) {
     });
 }
 
+function openSheetLink() {
+    window.open(`https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit?gid=0`, '_blank');
+}
+
 async function loadFromSheet() {
     $('#modalSheet').classList.add('show');
     const el = $('#sheetList');
@@ -1266,6 +1270,7 @@ async function exportGamesToSheet() {
     }
 }
 
+/*
 // 출석 기록을 참가자 시트에 내보내기 (참석일자/참석수 업데이트)
 let _exportingAttendance = false;
 let _attendanceExported = false; // 오늘 출석 내보내기 완료 여부
@@ -1305,10 +1310,12 @@ async function exportAttendanceToSheet() {
     } finally {
         _exportingAttendance = false;
     }
-}
+    
+}*/
 
 // ============ EVENTS ============
 function initEvents() {
+    $('#btnOpenSheet').onclick = openSheetLink;
     $('#btnLoadSheet').onclick = loadFromSheet;
     $('#btnSaveAttendance').onclick = showSaveModal;
     $('#btnGameLog').onclick = showGameLog;
