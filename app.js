@@ -2,13 +2,12 @@
    버티컬 배드민턴 매칭 시스템 v2
    ============================================
    매칭 규칙:
-   1. 그룹 매칭: 1그룹(DE) / 2그룹(ABC) 우선 (7:3 비율)
+   1. 급수 차이 최소화 (비슷한 급수끼리 우선)
    2. 여자A 1명일 때: 남자 B~D와 3:1 매칭 허용
-   3. 교차 허용: B+D, C+E까지 (8게임 쉰 사람은 제한 면제)
-   4. 남복/여복 우선, 혼복 동적 조절
-   5. 순수 대기자 기반 · 대기열 최대 2게임
-   6. 8게임 이상 쉬지 않도록 강제 배정
-   7. 같은 4명 조합 반복 방지 · 게임수 균등 (점수 기반)
+   3. 남복/여복 우선, 혼복 동적 조절
+   4. 순수 대기자 기반 · 대기열 최대 2게임
+   5. 8게임 이상 쉬지 않도록 강제 배정
+   6. 같은 4명 조합 반복 방지 · 게임수 균등 (점수 기반)
    ============================================ */
 
 const CONFIG = {
@@ -18,19 +17,13 @@ const CONFIG = {
     APPS_SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbwpV9oleWJ8uLDD7u86k60sl6FyFeOQv0HwlygbhqUp7F6OSNsk9E58b79C10Of-q3Z/exec',
     DEFAULT_COURTS: 3,
     LV: { A:5, B:4, C:3, D:2, E:1 },
-    UPPER: ['A','B','C'],  // 2그룹
-    LOWER: ['D','E'],      // 1그룹
     // 여자A 3:1 예외: 여자A 2명 미만일 때 남자 B~D와 3:1 허용
     FEMALE_A_31_MIN_MALE: 'B',  // 남자 최고급수 (A는 빡세니 B부터)
     FEMALE_A_31_MAX_MALE: 'D',  // 남자 최저급수
     MAX_REST: 8,
     // 자동 매칭 대기열 최대 게임 수
     MAX_QUEUE: 2,
-    // 그룹 내 : 교차 매칭 비율 (7:3 = 70% 같은 그룹, 30% 교차)
-    SAME_GROUP_RATIO: 7,
-    CROSS_GROUP_RATIO: 3,
-    // 교차 매칭 허용 범위: B+D, C+E까지 (실효급수 차이 2 이내)
-    MAX_CROSS_SPREAD: 2,
+
     // 최소 N게임 이내 같은 4인 조합 반복 금지
     MIN_NO_REPEAT: 5,
     // 혼복 동적 패널티 기본값 (남복/여복 우선)
@@ -50,7 +43,6 @@ const S = {
     sheetMembers: [],
     matchHistory: [],   // 과거 매칭 조합 기록 (Set of sorted id strings)
     gameTypeHistory: [], // 게임 타입 히스토리 (남복/여복/혼복 비율 추적)
-    groupMatchHistory: [], // 그룹 매칭 히스토리 (same/cross 추적)
     matchCounter: 0,    // 총 매칭 횟수 (비율 계산용)
     gameLog: [],        // 완료된 게임 기록 [{gameNum, type, court, teamA:[{name,level,gender}], teamB:[...], duration, time}]
     _cid:0, _pid:0, _gid:0,
@@ -62,13 +54,7 @@ const $$ = s => document.querySelectorAll(s);
 const genId = p => `${p}_${++S[`_${p[0]}id`]}`;
 const lvVal = lv => CONFIG.LV[lv] || 0;
 
-/**
- * 플레이어의 그룹 (원래 급수 기준)
- * 2그룹: A, B, C  /  1그룹: D, E
- */
-function getGroup(player) {
-    return CONFIG.UPPER.includes(player.level) ? 2 : 1;
-}
+
 
 /**
  * 여자A 3:1 예외 체크
@@ -100,16 +86,7 @@ function isFemaleA31Exception(four) {
     return allMalesInRange;
 }
 
-/**
- * 4명이 교차 매칭 허용 범위 내인지 체크
- * B+D, C+E까지 허용 (급수 차이 MAX_CROSS_SPREAD 이내)
- */
-function isCrossAllowed(four) {
-    const levels = four.map(p => CONFIG.LV[p.level] || 3);
-    const maxLv = Math.max(...levels);
-    const minLv = Math.min(...levels);
-    return (maxLv - minLv) <= CONFIG.MAX_CROSS_SPREAD;
-}
+
 
 // ============ UTIL ============
 function toast(msg, type='info') {
@@ -634,29 +611,7 @@ function recentRepeatDistance(four) {
     return -1;
 }
 
-/**
- * 동적 교차 매칭 패널티 (7:3 비율 자동 조절)
- * 최근 교차 비율이 목표(30%)보다 높으면 패널티 증가, 낮으면 감소
- */
-function getDynamicCrossPenalty() {
-    const history = S.groupMatchHistory || [];
-    if (history.length < 3) return 50; // 초반 기본값
 
-    const recent = history.slice(-10);
-    const crossCount = recent.filter(t => t === 'cross').length;
-    const crossRatio = crossCount / recent.length;
-    const targetRatio = CONFIG.CROSS_GROUP_RATIO / (CONFIG.SAME_GROUP_RATIO + CONFIG.CROSS_GROUP_RATIO); // 0.3
-
-    if (crossRatio < targetRatio * 0.3) {
-        return 0;    // 교차 너무 적음 → 패널티 없음 (교차 유도)
-    } else if (crossRatio < targetRatio) {
-        return 25;   // 목표 미만 → 약한 패널티
-    } else if (crossRatio < targetRatio * 1.5) {
-        return 50;   // 목표 근처 → 기본 패널티
-    } else {
-        return 100;  // 목표 초과 → 강한 패널티 (같은 그룹 유도)
-    }
-}
 
 /**
  * 동적 혼복 패널티 계산
@@ -733,31 +688,10 @@ function scoreCombo(four) {
     // (1) 모든 후보가 순수 대기자이므로 playing 패널티 불필요
     const playingPenalty = 0;
 
-    // (2) 그룹 매칭 점수 (실효급수 기반)
-    //     같은 그룹 4명: 보너스 / 교차: 동적 패널티 / 범위 초과: 차단
-    const groups = four.map(p => getGroup(p));
-    const g1Count = groups.filter(g => g === 1).length; // 1그룹(DE) 수
-    const g2Count = groups.filter(g => g === 2).length; // 2그룹(ABC) 수
-    const isSameGroup = (g1Count === 4 || g2Count === 4);
-    const isCross = !isSameGroup;
-
-    // 교차 매칭인데 허용 범위 초과 → 사실상 차단
-    // 단, 8게임 이상 쉰 urgent 선수 포함 시 차단 면제
-    const hasUrgent = four.some(p => p.restCount >= CONFIG.MAX_REST);
-    if (isCross && !isCrossAllowed(four) && !hasUrgent) {
-        return 9000 + Math.random() * 8;
-    }
-
-    // 그룹 점수: 같은 그룹이면 0, 교차면 동적 패널티
-    let tierScore = 0;
-    if (isCross) {
-        tierScore = getDynamicCrossPenalty();
-    }
-
-    // 같은 그룹 내에서도 급수 차이가 작을수록 보너스
+    // (2) 급수 차이: 차이가 작을수록 좋음
     const lvls = four.map(p => CONFIG.LV[p.level] || 3);
     const lvSpread = Math.max(...lvls) - Math.min(...lvls);
-    tierScore += lvSpread * 8; // 급수 차이 1당 8점
+    const tierScore = lvSpread * 12; // 급수 차이 1당 12점
 
     // (3) 혼복 동적 패널티: 최근 비율에 따라 자동 조절
     const mCount = four.filter(p => p.gender === '남').length;
@@ -946,11 +880,6 @@ function autoMatch() {
     if (!S.gameTypeHistory) S.gameTypeHistory = [];
     S.gameTypeHistory.push(gameType);
 
-    // 그룹 매칭 히스토리 추적 (같은 그룹 vs 교차)
-    if (!S.groupMatchHistory) S.groupMatchHistory = [];
-    const groups = four.map(p => getGroup(p));
-    const isAllSame = groups.every(g => g === groups[0]);
-    S.groupMatchHistory.push(isAllSame ? 'same' : 'cross');
 
     const split = bestSplit(four);
     const allIds = four.map(p => p.id);
