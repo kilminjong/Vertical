@@ -1,128 +1,224 @@
-# 버티컬 배드민턴 매칭 시스템
+# 🏸 버티컬 배드민턴 매칭 시스템
 
-## 📁 파일
-```
-index.html / styles.css / app.js → 같은 폴더에 넣고 index.html 더블클릭
-```
+구글 시트와 연동하여 배드민턴 동호회 운영을 자동화하는 웹 기반 매칭 시스템입니다.  
+별도 서버 없이 HTML/CSS/JS 파일만으로 동작하며, 구글 Apps Script를 통해 출석 및 게임 기록을 시트에 저장합니다.
 
 ---
 
-## 📊 구글 시트 구조
+## 📋 목차
 
-### 참가자 탭 (이미 완료 ✅)
-| A열 | B열 | C열 | D열 | E열 |
-|-----|-----|-----|-----|-----|
-| 이름 | 성별 | 급수 | 참석일자 | 참석수 |
-
-### 게임매칭 탭 (자동 저장됨)
-| 날짜 | 게임번호 | 유형 | 코트 | Team A | A급수 | Team B | B급수 | 소요시간 | 시각 |
+1. [주요 기능](#주요-기능)
+2. [시작하기](#시작하기)
+3. [구글 시트 연동 설정](#구글-시트-연동-설정)
+4. [매칭 규칙](#매칭-규칙)
+5. [화면 구성](#화면-구성)
+6. [설정값 커스터마이징](#설정값-커스터마이징)
+7. [파일 구조](#파일-구조)
 
 ---
 
-## ⚙️ Apps Script 설정 (따라하기)
+## ✨ 주요 기능
 
-### 1단계: Apps Script 열기
-구글 시트 상단 → **확장 프로그램** → **Apps Script** 클릭
+- **자동 매칭** — 급수, 성별, 게임 횟수를 고려한 스마트 자동 배정
+- **수동 매칭** — 원하는 4명을 직접 선택하여 게임 생성
+- **코트 관리** — 코트 추가/삭제 및 실시간 게임 타이머
+- **대기열 관리** — 최대 2게임 예약 대기열 지원
+- **구글 시트 연동** — 참가자 명단 불러오기 및 출석/게임 기록 내보내기
+- **상태 관리** — 대기 / 게임중 / 휴식 / 늦참 상태 개별 관리
+- **게임 기록** — 당일 전체 게임 이력 조회 및 통계 요약
 
-### 2단계: 코드 붙여넣기
-기존 코드 **전부 지우고** 아래 코드를 **통째로** 복사-붙여넣기:
+---
+
+## 🚀 시작하기
+
+### 요구 사항
+
+- 별도 설치 불필요
+- Chrome / Edge / Safari 최신 버전 권장
+- 인터넷 연결 (구글 시트 연동 시)
+
+### 실행 방법
+
+```bash
+# 1. 파일 다운로드
+index.html
+styles.css
+app.js
+
+# 2. index.html을 브라우저로 열기
+# (로컬 파일 실행 또는 웹서버 호스팅 모두 가능)
+```
+
+> **Tip:** 구글 시트 연동 없이도 수동으로 선수를 추가하여 매칭 기능을 사용할 수 있습니다.
+
+---
+
+## 🔗 구글 시트 연동 설정
+
+### 1. 참가자 시트 준비
+
+구글 스프레드시트에 `참가자` 탭을 만들고 아래 형식으로 데이터를 입력합니다.
+
+| 이름 | 급수 | 성별 |
+|------|------|------|
+| 홍길동 | B | 남 |
+| 김영희 | A | 여 |
+
+### 2. `app.js` 상단 CONFIG 수정
+
+```javascript
+const CONFIG = {
+    SHEET_ID: '여기에_구글시트_ID_입력',
+    SHEET_TAB: '참가자',          // 참가자 명단 탭 이름
+    GAME_LOG_TAB: '게임매칭',     // 게임 기록이 저장될 탭 이름
+    APPS_SCRIPT_URL: '여기에_Apps_Script_배포_URL_입력',
+    ...
+};
+```
+
+구글 시트 ID는 시트 URL에서 확인할 수 있습니다.
+```
+https://docs.google.com/spreadsheets/d/[여기가_SHEET_ID]/edit
+```
+
+### 3. Google Apps Script 배포 (선택)
+
+게임 기록 및 출석 내보내기 기능을 사용하려면 Apps Script 설정이 필요합니다.
+
+1. 구글 시트에서 **확장 프로그램 > Apps Script** 열기
+2. 아래 코드를 붙여넣고 **웹 앱으로 배포** (액세스: 모든 사용자)
+3. 발급된 URL을 `CONFIG.APPS_SCRIPT_URL`에 입력
 
 ```javascript
 function doPost(e) {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var data = JSON.parse(e.postData.contents);
+    const data = JSON.parse(e.postData.contents);
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  // ① 게임 기록 → 게임매칭 탭
-  if (data.action === 'saveGameLog') {
-    var tabName = data.sheetTab || '게임매칭';
-    var tab = ss.getSheetByName(tabName);
-    if (!tab) {
-      tab = ss.insertSheet(tabName);
-      tab.appendRow(['날짜','게임번호','유형','코트','Team A','A급수','Team B','B급수','소요시간','시각']);
+    if (data.action === 'saveGameLog') {
+        const sheet = ss.getSheetByName(data.sheetTab) || ss.insertSheet(data.sheetTab);
+        data.games.forEach(g => {
+            sheet.appendRow([data.date, g.gameNum, g.type, g.court,
+                g.teamA, g.teamA_levels, g.teamB, g.teamB_levels, g.duration, g.time]);
+        });
     }
-    for (var i = 0; i < data.games.length; i++) {
-      var g = data.games[i];
-      tab.appendRow([data.date, g.gameNum, g.type, g.court, g.teamA, g.teamA_levels, g.teamB, g.teamB_levels, g.duration, g.time]);
-    }
-  }
 
-  // ② 출석 → 참가자 탭 (D열: 참석일자, E열: 참석수)
-  if (data.action === 'updateAttendance') {
-    var tab = ss.getSheetByName('참가자');
-    if (!tab) return ContentService.createTextOutput('no tab');
-    var lastRow = tab.getLastRow();
-    if (lastRow < 2) return ContentService.createTextOutput('no data');
-    var names = tab.getRange(2, 1, lastRow - 1, 1).getValues();
-
-    for (var j = 0; j < data.players.length; j++) {
-      var p = data.players[j];
-      for (var r = 0; r < names.length; r++) {
-        if (names[r][0] === p.name) {
-          var row = r + 2;
-          // D열: 참석일자 추가
-          var cellD = tab.getRange(row, 4);
-          var existing = cellD.getValue();
-          var newVal = existing ? existing + ', ' + data.date : data.date;
-          cellD.setValue(newVal);
-          // E열: 참석수 +1
-          var cellE = tab.getRange(row, 5);
-          var count = Number(cellE.getValue()) || 0;
-          cellE.setValue(count + 1);
-          break;
-        }
-      }
+    if (data.action === 'updateAttendance') {
+        const sheet = ss.getSheetByName('참가자');
+        // 참가자 시트에서 이름 매칭 후 참석일자/게임수 업데이트
+        data.players.forEach(p => {
+            // 구현 필요: 이름 열에서 p.name 검색 후 참석일자 기록
+        });
     }
-  }
 
-  // ③ 기존 출석 저장 (출석기록 탭)
-  if (data.action === 'saveAttendance') {
-    var tab = ss.getSheetByName('출석기록');
-    if (!tab) {
-      tab = ss.insertSheet('출석기록');
-      tab.appendRow(['날짜','이름','급수','성별','게임수']);
-    }
-    for (var k = 0; k < data.players.length; k++) {
-      var p = data.players[k];
-      tab.appendRow([data.date, p.name, p.level, p.gender, p.gameCount]);
-    }
-  }
-
-  return ContentService.createTextOutput(JSON.stringify({success:true})).setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput('ok');
 }
 ```
 
-### 3단계: 저장
-Ctrl+S (또는 💾 아이콘)
-
-### 4단계: 배포
-1. 우측 상단 **배포** → **새 배포** 클릭
-2. ⚙️ 유형 선택 → **웹 앱**
-3. 설명: 아무거나 (예: "배드민턴")
-4. 실행 사용자: **나**
-5. 액세스 권한: **모든 사용자**
-6. **배포** 클릭
-7. **승인** → 구글 계정 선택 → "고급" → "안전하지 않은 페이지로 이동" → **허용**
-8. 나오는 URL 복사
-
-### 5단계: URL 붙여넣기
-`app.js` 파일을 메모장이나 VS Code로 열고 **16번째 줄** 쯤에 있는:
-```
-APPS_SCRIPT_URL: '',
-```
-를 복사한 URL로 변경:
-```
-APPS_SCRIPT_URL: 'https://script.google.com/macros/s/여기에_긴_URL/exec',
-```
-저장 후 새로고침하면 끝!
+> Apps Script 미설정 시, 내보내기 버튼을 눌러도 브라우저 콘솔에만 기록됩니다.
 
 ---
 
-## 🎮 사용 흐름
+## ⚙️ 매칭 규칙
+
+자동 매칭은 아래 우선순위와 규칙에 따라 최적의 4인 조합을 선택합니다.
+
+| 규칙 | 내용 |
+|------|------|
+| **그룹 구분** | 1그룹(D·E급) / 2그룹(A·B·C급) |
+| **그룹 비율** | 같은 그룹 내 매칭 70% : 교차 매칭 30% |
+| **교차 허용 범위** | B+D, C+E까지 (급수 차이 2단계 이내) |
+| **여자A 예외** | 여자A가 1명뿐일 때 남자B~D와 3:1 매칭 허용 |
+| **게임 타입** | 남복 / 여복 우선, 혼복은 전체 15% 목표 |
+| **게임수 균등** | 게임 횟수 차이 2 이상 시 적게 뛴 선수 우선 배정 |
+| **장기 대기 방지** | 8게임 이상 쉰 선수는 모든 제한 면제 후 강제 배정 |
+| **조합 반복 방지** | 동일 4인 조합은 5게임 이내 재매칭 금지 |
+
+### 매칭 타입
+
+| 탭 | 설명 |
+|----|------|
+| `자동` | 규칙에 따라 최적 조합 자동 선택 |
+| `남복` | 남자 복식 우선 매칭 |
+| `여복` | 여자 복식 우선 매칭 |
+| `혼복` | 혼성 복식 우선 매칭 |
+| `수동` | 대기 인원에서 4명 직접 선택 후 매칭 |
+
+---
+
+## 🖥️ 화면 구성
 
 ```
-시트 불러오기 → 참석 인원 선택 → 게임 매칭 → 코트 배정
-    → 게임 진행 → 게임 종료 → 반복...
-    → 운동 끝나면:
-       📋 게임 기록 → 📤 시트에 내보내기 (게임매칭 탭 저장)
-       📋 게임 기록 → 📤 출석 내보내기 (참가자 탭 D·E열 업데이트)
+┌─────────────────────────────────────────────────────────┐
+│  🏸 버티컬 배드민턴         [시트불러오기] [기록] [저장]  │  ← 헤더
+├─────────────────────────────────┬───────────────────────┤
+│  🏟️ 코트 현황                   │  👥 대기 인원          │
+│  [코트1] [코트2] [코트3]         │  [전체][대기][게임중]  │
+│                                 │  ┌──────────────────┐  │
+│  ⚡ 게임 매칭                   │  │ 홍길동 B남 3게임  │  │
+│  [자동][남복][여복][혼복][수동]  │  │ 김영희 A여 2게임  │  │
+│                                 │  │ ...              │  │
+│  [매칭 미리보기]                 │  └──────────────────┘  │
+│  [대기열]                       │  [+ 직접 추가]         │
+└─────────────────────────────────┴───────────────────────┘
 ```
+
+### 주요 버튼
+
+| 버튼 | 기능 |
+|------|------|
+| 📥 시트 불러오기 | 구글 시트에서 오늘 참가자 선택 후 추가 |
+| 📊 구글시트 이동 | 연결된 구글 스프레드시트 새 탭으로 열기 |
+| 📋 게임 기록 | 당일 완료된 전체 게임 이력 및 통계 확인 |
+| 💾 출석 저장 | 현재 참가자 목록을 시트에 저장 |
+| ⚡ 자동 매칭 | 규칙 기반 자동 4인 조합 생성 및 대기열 추가 |
+| + 코트 추가 | 코트 수 동적 추가 |
+| + 직접 추가 | 시트에 없는 선수를 이름/급수/성별로 직접 등록 |
+
+### 선수 상태 변경
+
+선수 카드의 상태 버튼을 클릭하면 드롭다운이 표시됩니다.
+
+- ✅ **대기** — 매칭 대상에 포함
+- 😴 **휴식** — 매칭에서 제외
+- 🕐 **늦참** — 나중에 참여 예정
+
+---
+
+## 🔧 설정값 커스터마이징
+
+`app.js` 상단 `CONFIG` 객체에서 동작 방식을 조정할 수 있습니다.
+
+```javascript
+const CONFIG = {
+    DEFAULT_COURTS: 3,          // 기본 코트 수
+    MAX_REST: 8,                // 이 이상 쉬면 강제 배정 (게임 수)
+    MAX_QUEUE: 2,               // 대기열 최대 게임 수
+    SAME_GROUP_RATIO: 7,        // 같은 그룹 매칭 비율 (70%)
+    CROSS_GROUP_RATIO: 3,       // 교차 매칭 비율 (30%)
+    MAX_CROSS_SPREAD: 2,        // 교차 매칭 허용 급수 차이
+    MIN_NO_REPEAT: 5,           // 동일 조합 반복 금지 게임 수
+    MIXED_TARGET_RATIO: 0.15,   // 혼복 목표 비율 (15%)
+    MAX_GAME_DIFF: 2,           // 게임수 차이 허용 최대값
+};
+```
+
+---
+
+## 📁 파일 구조
+
+```
+📦 프로젝트 루트
+ ┣ 📄 index.html     — 전체 UI 마크업 (모달, 헤더, 코트/매칭/대기 패널)
+ ┣ 📄 styles.css     — 디자인 및 레이아웃 (다크 테마, 반응형)
+ ┗ 📄 app.js         — 전체 비즈니스 로직 (매칭 엔진, 시트 연동, 상태 관리)
+```
+
+---
+
+## 📝 라이선스
+
+본 프로젝트는 버티컬 배드민턴 동호회 내부 운영 도구로 제작되었습니다.
+
+---
+
+*문의 및 기여는 이슈 또는 PR로 남겨주세요.*
