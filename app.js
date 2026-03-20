@@ -937,7 +937,7 @@ function addToQueue(teamA, teamB, type) {
 function removeFromQueue(gid) { S.queue = S.queue.filter(g => g.id !== gid); renderAll(); }
 
 // ============ RENDERING ============
-function renderAll() { renderCourts(); renderPlayers(); renderQueue(); renderPreview(); }
+function renderAll() { renderCourts(); renderPlayers(); renderQueue(); renderPreview(); if (courtsCollapsed) renderCourtsSummary(); }
 
 function renderCourts() {
     const el = $('#courtsRow');
@@ -1267,6 +1267,41 @@ async function exportAttendanceToSheet() {
     } finally {
         _exportingAttendance = false;
     }
+}
+
+// ============ COURT TOGGLE ============
+let courtsCollapsed = false;
+function toggleCourts() {
+    courtsCollapsed = !courtsCollapsed;
+    $('#courtsRow').classList.toggle('hidden', courtsCollapsed);
+    $('#courtsSummary').classList.toggle('hidden', !courtsCollapsed);
+    $('#btnToggleCourts').classList.toggle('collapsed', courtsCollapsed);
+    $('#btnToggleCourts').textContent = courtsCollapsed ? '▶' : '▼';
+    if (courtsCollapsed) renderCourtsSummary();
+}
+
+function renderCourtsSummary() {
+    const el = $('#courtsSummary');
+    const pN = id => S.players.find(p => p.id === id)?.name || '?';
+    el.innerHTML = S.courts.map(c => {
+        const live = !!c.game;
+        if (live) {
+            const names = [...c.game.teamA, ...c.game.teamB].map(pN).join(' · ');
+            return `<div class="court-chip">
+                <span class="cc-name">${c.name}</span>
+                <span class="cc-type t-${c.game.type}">${c.game.type}</span>
+                <span class="cc-timer" data-timer="${c.id}">${fmtTime(c.game.elapsed)}</span>
+                <button class="cc-btn" onclick="endGame('${c.id}')" title="종료">🏁</button>
+                <button class="cc-btn" onclick="cancelGame('${c.id}')" title="취소">❌</button>
+            </div>`;
+        } else {
+            return `<div class="court-chip">
+                <span class="cc-name">${c.name}</span>
+                <span class="cc-empty">대기</span>
+                <button class="cc-btn" onclick="startGame('${c.id}')" title="시작" ${!S.queue.length?'disabled':''}>▶</button>
+            </div>`;
+        }
+    }).join('');
 }
 
 // ============ PLAYER PANEL TOGGLE ============

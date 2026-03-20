@@ -32,12 +32,18 @@
     <section class="section-left">
 
         <!-- 코트 현황 -->
-        <div class="section-courts">
+        <div class="section-courts" id="sectionCourts">
             <div class="section-bar">
-                <h2>🏟️ 코트 현황</h2>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <button class="btn-court-toggle" id="btnToggleCourts" onclick="toggleCourts()" title="코트 접기/펼치기">▼</button>
+                    <h2>🏟️ 코트 현황</h2>
+                </div>
                 <button class="btn btn-ghost-sm" id="btnAddCourt">+ 코트 추가</button>
             </div>
+            <!-- 펼침: 기존 코트 카드들 -->
             <div class="courts-row" id="courtsRow"></div>
+            <!-- 접힘: 한 줄 요약 -->
+            <div class="courts-summary hidden" id="courtsSummary"></div>
         </div>
 
         <!-- 매칭 -->
